@@ -1,0 +1,63 @@
+{
+  "countries": {
+    "IN": {
+      "digits": 10,
+      "prefixes": [
+        "6",
+        "7",
+        "8",
+        "9"
+      ]
+    },
+    "SG": {
+      "digits": 8,
+      "prefixes": [
+        "8",
+        "9"
+      ]
+    },
+    "US": {
+      "digits": 10,
+      "prefixes": []
+    }
+  },
+  "date_formats": [
+    "DD-MM-YYYY",
+    "YYYY-MM-DD",
+    "MM/DD/YYYY"
+  ],
+  "time_formats": [
+    "HH:mm:ss",
+    "HH:mm"
+  ],
+  "payment_modes": [
+    "UPI",
+    "CARD",
+    "CASH",
+    "NETBANKING"
+  ],
+  "order_statuses": [
+    "PENDING",
+    "CONFIRMED",
+    "CANCELLED"
+  ],
+  "currencies": [
+    "INR",
+    "SGD",
+    "USD"
+  ],
+  "chunk_size": 1000,
+  "max_lengths": {
+    "customer_name": 100,
+    "email": 255,
+    "product_name": 200,
+    "transaction_id": 100,
+    "shipping_address": 500,
+    "phone_number": 15
+  },
+  "severity_overrides": {
+    "email": "WARNING",
+    "shipping_address": "INFO",
+    "order_time": "WARNING"
+  }
+}

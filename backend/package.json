@@ -1,0 +1,17 @@
+{
+  "name": "transaction-data-validation-backend",
+  "version": "1.0.0",
+  "description": "Backend for Transaction Data Validation Platform",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "csv-parser": "^3.2.0",
+    "dayjs": "^1.11.13",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "multer": "^1.4.5-lts.1"
+  }
+}
