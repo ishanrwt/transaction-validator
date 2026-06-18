@@ -153,6 +153,9 @@ export default function ValidatorPage() {
           <p className="mt-1 text-sm text-slate-500">
             Upload a transaction CSV file to validate and clean your data.
           </p>
+          <p className="mt-2 text-sm text-blue-700">
+            To change how files are validated, open Settings from the top-right.
+          </p>
         </div>
         <button
           type="button"
