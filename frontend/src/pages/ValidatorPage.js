@@ -8,6 +8,7 @@ import DownloadSection from "../components/DownloadSection";
 const API_URL = import.meta.env.REACT_APP_API_URL || "http://localhost:5000";
 
 export default function ValidatorPage() {
+  // The validator is a simple state machine: upload -> loading -> results/error.
   const [step, setStep] = useState("upload");
   const [file, setFile] = useState(null);
   const [result, setResult] = useState(null);
@@ -27,6 +28,7 @@ export default function ValidatorPage() {
     setErrorMessage("");
 
     const formData = new FormData();
+    // Backend upload middleware expects the file field to be named "file".
     formData.append("file", file);
 
     try {
@@ -38,6 +40,7 @@ export default function ValidatorPage() {
       setStep("results");
     } catch (error) {
       const data = error.response?.data;
+      // Structural validation errors return "reason"; unexpected errors return "error".
       const message =
         data?.reason ||
         data?.error ||

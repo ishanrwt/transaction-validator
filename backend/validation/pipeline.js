@@ -30,6 +30,7 @@ const NUMERIC_FIELDS = ["unit_price", "amount_paid", "line_total", "quantity", "
 const ZERO_WIDTH_CHARS = /[\u200B\uFEFF\u00A0]/g;
 const CSV_INJECTION_PATTERN = /^[=+\-@]/;
 
+// A structural abort stops the pipeline before row-level processing begins.
 function abort(reason) {
   return { aborted: true, reason, stage: "structural" };
 }
@@ -79,6 +80,7 @@ function parseCsvRow(line) {
   return fields;
 }
 
+// Split records manually first so we can validate header/column structure before csv-parser.
 function parseCsvRecords(text) {
   const records = [];
   let current = "";
@@ -141,6 +143,7 @@ function runStructuralCheck(fileBuffer) {
     return abort("File is empty");
   }
 
+  // Stage 1: reject malformed CSV shape before any sanitization or validation.
   const records = parseCsvRecords(text);
   if (records.length === 0) {
     return abort("CSV has no content");
@@ -178,6 +181,7 @@ function parseCsvBuffer(fileBuffer) {
   });
 }
 
+// Stage 2: normalize string values while preserving enough information for validation.
 function sanitizeString(value) {
   if (value === null || value === undefined) {
     return null;
@@ -192,6 +196,7 @@ function sanitizeString(value) {
     return null;
   }
 
+  // Prefix formula-like values to protect spreadsheet users from CSV injection.
   if (CSV_INJECTION_PATTERN.test(str)) {
     str = `'${str}`;
   }
@@ -205,6 +210,7 @@ function coerceNumeric(value) {
   }
 
   const original = String(value).trim();
+  // Strip common currency symbols and separators, but leave invalid values for rules to catch.
   const stripped = original.replace(/[$€£₹,\s]/g, "");
 
   if (stripped === "") {
@@ -220,6 +226,7 @@ function coerceNumeric(value) {
 }
 
 function sanitizeRows(rows) {
+  // Mutate row objects in place so every later stage works from sanitized values.
   for (const row of rows) {
     for (const key of EXPECTED_HEADERS) {
       let value = sanitizeString(row[key]);
@@ -234,6 +241,7 @@ function sanitizeRows(rows) {
 }
 
 function rowSignature(row) {
+  // Compare all expected fields so exact duplicates can be excluded from cleaned output.
   return JSON.stringify(EXPECTED_HEADERS.map((field) => row[field] ?? null));
 }
 
@@ -241,6 +249,7 @@ function prepareCleanedRow(row, result) {
   const output = {};
   const failedFields = new Set();
 
+  // Warning rows are kept, but fields that failed warning/info rules are blanked out.
   if (result.status === "WARNING") {
     for (const error of result.errors) {
       if (error.field && error.field !== "duplicate_row") {
@@ -271,6 +280,7 @@ function prepareErrorRow(row) {
 }
 
 function determineStatus(errors) {
+  // ERROR blocks the row, WARNING/INFO keeps it downloadable but visible to the user.
   if (errors.some((error) => error.severity === "ERROR")) {
     return "INVALID";
   }
@@ -306,6 +316,7 @@ function rowsToCsv(headers, rows) {
 }
 
 function chunkRows(rows, chunkSize) {
+  // Cleaned files are split so large uploads still produce manageable downloads.
   const chunks = [];
 
   for (let i = 0; i < rows.length; i += chunkSize) {
@@ -324,6 +335,7 @@ async function runPipeline(fileBuffer, config) {
   const rows = await parseCsvBuffer(fileBuffer);
   sanitizeRows(rows);
 
+  // Map stores the first row number for each exact row signature.
   const seenRows = new Map();
   const rowResults = [];
   let validCount = 0;
@@ -337,6 +349,7 @@ async function runPipeline(fileBuffer, config) {
 
     const signature = rowSignature(row);
     if (seenRows.has(signature)) {
+      // Duplicate rows are invalid so cleaned output never repeats the same data.
       duplicateCount++;
       errors.push({
         field: "duplicate_row",
@@ -376,6 +389,7 @@ async function runPipeline(fileBuffer, config) {
     if (result.status === "INVALID") {
       errorRows.push({
         ...prepareErrorRow(row),
+        // Deduplicate field names while preserving every detailed error message.
         error_fields: [...new Set(result.errors.map((error) => error.field))].join(","),
         error_messages: result.errors.map((error) => error.message).join("|"),
       });

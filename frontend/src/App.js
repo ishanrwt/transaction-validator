@@ -3,6 +3,7 @@ import ValidatorPage from "./pages/ValidatorPage";
 import SettingsPage from "./pages/SettingsPage";
 
 function App() {
+  // The app is small enough that simple local page state is clearer than a router.
   const [page, setPage] = useState("validator");
 
   return (

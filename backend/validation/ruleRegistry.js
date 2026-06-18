@@ -6,6 +6,7 @@ dayjs.extend(customParseFormat);
 const PAYMENT_STATUSES = ["SUCCESS", "FAILED", "PENDING"];
 const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
+// Shared guard for text fields that could be opened in spreadsheet software.
 const validateNoInjection = (value) => {
   if (!value || typeof value !== "string") return true;
   return !["=", "+", "-", "@"].includes(value.trim()[0]);
@@ -16,6 +17,7 @@ function isBlank(value) {
 }
 
 function parseDate(value, formats) {
+  // Strict parsing rejects impossible dates such as 32-13-2024.
   const str = String(value).trim();
   for (const format of formats) {
     const parsed = dayjs(str, format, true);
@@ -27,6 +29,7 @@ function parseDate(value, formats) {
 }
 
 function parseTime(value, formats) {
+  // Strict parsing rejects impossible times such as 25:61.
   const str = String(value).trim();
   for (const format of formats) {
     const parsed = dayjs(str, format, true);
@@ -48,10 +51,12 @@ function isPositiveNumber(value) {
 }
 
 function severityFor(field, defaultSeverity, config) {
+  // Selected optional fields can be downgraded through config without changing code.
   return config.severity_overrides?.[field] ?? defaultSeverity;
 }
 
 function buildRules(config) {
+  // Rules are rebuilt from config so Settings changes affect the next validation request.
   const { countries, date_formats, time_formats, payment_modes, order_statuses, currencies, max_lengths } =
     config;
 
@@ -117,6 +122,7 @@ function buildRules(config) {
       field: "phone_number",
       condition: (value) => !isBlank(value),
       validate: (value, row) => {
+        // Phone rules are country-specific: digit count is mandatory, prefix list is optional.
         const digits = String(value).replace(/\D/g, "");
         const countryCode = String(row.country_code || "").trim();
         const country = countries[countryCode];
@@ -352,6 +358,7 @@ function buildRules(config) {
       field: "line_total",
       condition: (value) => value !== null && value !== "",
       validate: (value, row) => {
+        // Keep this independent from quantity/discount rules so each violation is reported.
         const qty = parseFloat(row.quantity);
         const price = parseFloat(row.unit_price);
         const disc = parseFloat(row.discount) || 0;
@@ -414,6 +421,7 @@ function buildRules(config) {
       id: "AMOUNT_PAID_MISMATCH",
       field: "amount_paid",
       condition: (value, row) => {
+        // Only compare when both values are numeric; format rules handle non-numeric input.
         const paid = parseFloat(value);
         const total = parseFloat(row.line_total);
         return !isNaN(paid) && !isNaN(total);

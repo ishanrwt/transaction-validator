@@ -8,6 +8,7 @@ function formatFileSize(bytes) {
 }
 
 export default function DropZone({ file, onFileSelect }) {
+  // react-dropzone validates file type/count before passing the accepted file upward.
   const onDrop = useCallback(
     (acceptedFiles) => {
       if (acceptedFiles.length > 0) {

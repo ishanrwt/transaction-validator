@@ -1,3 +1,5 @@
+import { STATUS_CONFIG } from "../constants/statusConfig";
+
 export default function SummaryCards({ summary }) {
   const cards = [
     {
@@ -6,19 +8,19 @@ export default function SummaryCards({ summary }) {
       className: "border-slate-200 bg-white text-slate-800",
     },
     {
-      label: "Valid ✓",
+      label: `${STATUS_CONFIG.VALID.icon} ${STATUS_CONFIG.VALID.label}`,
       value: summary.valid,
-      className: "border-green-200 bg-green-50 text-green-800",
+      className: STATUS_CONFIG.VALID.badgeClass,
     },
     {
-      label: "Warnings ⚠",
+      label: `${STATUS_CONFIG.WARNING.icon} ${STATUS_CONFIG.WARNING.label}`,
       value: summary.warnings,
-      className: "border-amber-200 bg-amber-50 text-amber-800",
+      className: STATUS_CONFIG.WARNING.badgeClass,
     },
     {
-      label: "Invalid ✗",
+      label: `${STATUS_CONFIG.INVALID.icon} ${STATUS_CONFIG.INVALID.label}`,
       value: summary.invalid,
-      className: "border-red-200 bg-red-50 text-red-800",
+      className: STATUS_CONFIG.INVALID.badgeClass,
     },
   ];
 

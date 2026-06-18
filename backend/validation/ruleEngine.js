@@ -1,5 +1,6 @@
 const { buildRules } = require("./ruleRegistry");
 
+// Some rules compute severity dynamically based on row context.
 function resolveSeverity(rule, value, row) {
   if (typeof rule.severity === "function") {
     return rule.severity(value, row);
@@ -7,6 +8,7 @@ function resolveSeverity(rule, value, row) {
   return rule.severity;
 }
 
+// Messages can also be dynamic when the exact failure reason depends on the row.
 function resolveMessage(rule, value, row) {
   if (typeof rule.message === "function") {
     return rule.message(value, row);
@@ -18,6 +20,7 @@ function runRules(row, rowIndex, config) {
   const rules = buildRules(config);
   const errors = [];
 
+  // Rules decide whether they apply through condition(), then report failures via validate().
   for (const rule of rules) {
     const value = row[rule.field];
 

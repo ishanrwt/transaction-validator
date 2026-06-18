@@ -1,28 +1,19 @@
 import { useState, Fragment } from "react";
-
-const STATUS_STYLES = {
-  VALID: "bg-green-100 text-green-800",
-  WARNING: "bg-amber-100 text-amber-800",
-  INVALID: "bg-red-100 text-red-800",
-};
+import { STATUS_CONFIG } from "../constants/statusConfig";
 
 function getIssuesSummary(row) {
   if (row.status === "VALID") {
     return "—";
   }
 
-  if (row.status === "WARNING") {
-    return row.errors.map((e) => e.field).join(", ") || "—";
-  }
+  const flaggedFields = row.errors.map((e) => e.field);
 
-  const errorFields = row.errors
-    .filter((e) => e.severity === "ERROR")
-    .map((e) => e.field);
-
-  return [...new Set(errorFields)].join(", ") || "—";
+  // A field can fail multiple rules, but the table summary should list it once.
+  return [...new Set(flaggedFields)].join(", ") || "—";
 }
 
 export default function ResultsTable({ rowResults }) {
+  // Only one flagged row is expanded at a time to keep the table readable.
   const [expandedRow, setExpandedRow] = useState(null);
 
   const toggleRow = (rowNumber) => {
@@ -31,6 +22,16 @@ export default function ResultsTable({ rowResults }) {
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex flex-wrap gap-3 border-b border-slate-200 bg-white px-4 py-3 text-xs text-slate-600">
+        {Object.entries(STATUS_CONFIG).map(([status, config]) => (
+          <div key={status} className="flex items-center gap-1.5">
+            <span className={`rounded-full px-2 py-0.5 font-semibold ${config.badgeClass}`}>
+              {config.icon} {config.label}
+            </span>
+            <span>{config.description}</span>
+          </div>
+        ))}
+      </div>
       <div className="max-h-96 overflow-auto">
         <table className="min-w-full text-left text-sm">
           <thead className="sticky top-0 bg-slate-100 text-slate-600">
@@ -43,15 +44,16 @@ export default function ResultsTable({ rowResults }) {
           </thead>
           <tbody>
             {rowResults.map((row) => {
-              const isInvalid = row.status === "INVALID";
+              const statusConfig = STATUS_CONFIG[row.status];
+              const canExpand = row.status !== "VALID" && row.errors.length > 0;
               const isExpanded = expandedRow === row.row_number;
 
               return (
                 <Fragment key={row.row_number}>
                   <tr
-                    onClick={() => isInvalid && toggleRow(row.row_number)}
+                    onClick={() => canExpand && toggleRow(row.row_number)}
                     className={`border-t border-slate-100 ${
-                      isInvalid ? "cursor-pointer hover:bg-red-50" : ""
+                      canExpand ? "cursor-pointer hover:bg-slate-50" : ""
                     }`}
                   >
                     <td className="px-4 py-3">{row.row_number}</td>
@@ -59,25 +61,28 @@ export default function ResultsTable({ rowResults }) {
                     <td className="px-4 py-3">
                       <span
                         className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                          STATUS_STYLES[row.status] || "bg-slate-100 text-slate-800"
+                          statusConfig?.badgeClass || "bg-slate-100 text-slate-800"
                         }`}
                       >
-                        {row.status}
+                        {statusConfig ? `${statusConfig.icon} ${statusConfig.label}` : row.status}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-slate-600">
                       {getIssuesSummary(row)}
-                      {isInvalid && (
+                      {canExpand && (
                         <span className="ml-2 text-xs text-slate-400">
                           {isExpanded ? "▲" : "▼"}
                         </span>
                       )}
                     </td>
                   </tr>
-                  {isInvalid && isExpanded && (
-                    <tr className="bg-red-50">
+                  {canExpand && isExpanded && (
+                    <tr className="bg-slate-50">
                       <td colSpan={4} className="px-4 py-3">
-                        <ul className="space-y-1 text-sm text-red-800">
+                        <p className="mb-2 text-sm font-medium text-slate-800">
+                          {statusConfig.icon} {statusConfig.label} — {statusConfig.description}
+                        </p>
+                        <ul className="space-y-1 text-sm text-slate-700">
                           {row.errors.map((error, index) => (
                             <li key={`${error.rule_id}-${index}`}>
                               <span className="font-medium">{error.field}:</span>{" "}

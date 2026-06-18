@@ -5,6 +5,7 @@ const path = require("path");
 const router = express.Router();
 const CONFIG_PATH = path.join(__dirname, "..", "config.json");
 
+// These keys are required for the validation engine to build its dynamic rules.
 const REQUIRED_KEYS = [
   "countries",
   "date_formats",
@@ -23,6 +24,7 @@ function hasRequiredKeys(body) {
   );
 }
 
+// Settings page uses this to hydrate the current validation configuration.
 router.get("/", async (_req, res) => {
   try {
     const raw = await fs.readFile(CONFIG_PATH, "utf8");
@@ -32,6 +34,7 @@ router.get("/", async (_req, res) => {
   }
 });
 
+// Persist the full config object so future validation requests use the new settings.
 router.put("/", async (req, res) => {
   try {
     if (!hasRequiredKeys(req.body)) {

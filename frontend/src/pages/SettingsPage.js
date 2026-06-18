@@ -13,6 +13,7 @@ function prefixesToString(prefixes) {
 }
 
 function parsePrefixes(value) {
+  // Convert the comma-separated UI value into the array expected by backend config.
   return value
     .split(",")
     .map((part) => part.trim())
@@ -23,6 +24,7 @@ function TagInput({ label, tags, onChange, placeholder }) {
   const [input, setInput] = useState("");
 
   const addTag = () => {
+    // Store enum-style values consistently because validators compare exact strings.
     const value = input.trim().toUpperCase();
     if (!value || tags.includes(value)) {
       setInput("");
@@ -85,6 +87,7 @@ function SettingsPage() {
   const [toast, setToast] = useState(null);
 
   const [baseConfig, setBaseConfig] = useState(null);
+  // Editable slices of config are separated so the form can update each section independently.
   const [countries, setCountries] = useState({});
   const [dateFormats, setDateFormats] = useState([]);
   const [timeFormats, setTimeFormats] = useState([]);
@@ -101,6 +104,7 @@ function SettingsPage() {
   useEffect(() => {
     if (!toast) return undefined;
 
+    // Toasts are intentionally short-lived so the form stays uncluttered after saving.
     const timer = setTimeout(() => setToast(null), 3000);
     return () => clearTimeout(timer);
   }, [toast]);
@@ -108,6 +112,7 @@ function SettingsPage() {
   useEffect(() => {
     const loadConfig = async () => {
       try {
+        // Load the deployed backend config so settings edits start from current rules.
         const response = await axios.get(`${API_URL}/api/config`);
         const config = response.data;
 
@@ -140,6 +145,7 @@ function SettingsPage() {
   const toggleDateFormat = (format) => {
     setDateFormats((current) => {
       if (current.includes(format)) {
+        // At least one date format must stay enabled for strict date validation.
         if (current.length === 1) return current;
         return current.filter((item) => item !== format);
       }
@@ -215,6 +221,7 @@ function SettingsPage() {
 
     setCountries((current) => {
       const next = { ...current };
+      // Support renaming a country code by replacing the old key.
       if (newCode !== editingCode) {
         delete next[editingCode];
       }
@@ -243,6 +250,7 @@ function SettingsPage() {
   const handleSave = async () => {
     if (!baseConfig) return;
 
+    // Clamp chunk size before writing so the backend receives a deploy-safe value.
     const normalizedChunkSize = Math.min(
       10000,
       Math.max(100, Number(chunkSize) || 1000)
@@ -250,6 +258,7 @@ function SettingsPage() {
 
     const payload = {
       ...baseConfig,
+      // Preserve untouched config sections while replacing the form-managed sections.
       countries,
       date_formats: dateFormats,
       time_formats: timeFormats.length > 0 ? timeFormats : ALL_TIME_FORMATS,

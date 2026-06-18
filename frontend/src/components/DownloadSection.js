@@ -1,4 +1,5 @@
 function downloadBase64Csv(base64Data, filename) {
+  // Backend sends CSV content as base64 so it can travel safely inside JSON.
   const binary = atob(base64Data);
   const bytes = new Uint8Array(binary.length);
 
@@ -9,6 +10,7 @@ function downloadBase64Csv(base64Data, filename) {
   const blob = new Blob([bytes], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
+  // Programmatic anchor click triggers the normal browser download flow.
   link.href = url;
   link.download = filename;
   document.body.appendChild(link);
