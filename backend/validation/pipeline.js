@@ -15,6 +15,7 @@ const EXPECTED_HEADERS = [
   "product_id",
   "product_name",
   "category",
+  "shipping_address",
   "quantity",
   "unit_price",
   "discount",
@@ -24,6 +25,15 @@ const EXPECTED_HEADERS = [
   "amount_paid",
   "payment_status",
   "payment_date",
+];
+
+const DEFAULT_OPTIONAL_COLUMNS = [
+  "email",
+  "order_time",
+  "discount",
+  "transaction_id",
+  "category",
+  "shipping_address",
 ];
 
 const NUMERIC_FIELDS = ["unit_price", "amount_paid", "line_total", "quantity", "discount"];
@@ -42,6 +52,14 @@ function isValidUtf8(buffer) {
   } catch {
     return false;
   }
+}
+
+function stripBOM(str) {
+  return str.charCodeAt(0) === 0xFEFF ? str.slice(1) : str;
+}
+
+function normalizeHeader(header) {
+  return String(header).trim().toLowerCase();
 }
 
 function parseCsvRow(line) {
@@ -121,15 +139,32 @@ function parseCsvRecords(text) {
   return records.filter((record) => record.trim() !== "");
 }
 
-function headersMatch(actual, expected) {
-  if (actual.length !== expected.length) {
-    return false;
-  }
+function getOptionalColumns(config) {
+  const configuredOptionalColumns = Array.isArray(config?.optional_columns)
+    ? config.optional_columns
+    : DEFAULT_OPTIONAL_COLUMNS;
 
-  return actual.every((header, index) => header.trim() === expected[index]);
+  return new Set(configuredOptionalColumns.map(normalizeHeader));
 }
 
-function runStructuralCheck(fileBuffer) {
+function getMissingRequiredHeaders(headers, optionalColumns) {
+  const uploadedHeaders = new Set(headers);
+  const requiredHeaders = EXPECTED_HEADERS.filter(
+    (header) => !optionalColumns.has(header)
+  );
+
+  return requiredHeaders.filter((header) => !uploadedHeaders.has(header));
+}
+
+function getMissingOptionalHeaders(headers, optionalColumns) {
+  const uploadedHeaders = new Set(headers);
+
+  return EXPECTED_HEADERS.filter(
+    (header) => optionalColumns.has(header) && !uploadedHeaders.has(header)
+  );
+}
+
+function runStructuralCheck(fileBuffer, config) {
   if (!fileBuffer || fileBuffer.length === 0) {
     return abort("File is empty");
   }
@@ -138,7 +173,7 @@ function runStructuralCheck(fileBuffer) {
     return abort("File is not valid UTF-8");
   }
 
-  const text = fileBuffer.toString("utf8");
+  const text = stripBOM(fileBuffer.toString("utf8"));
   if (text.trim().length === 0) {
     return abort("File is empty");
   }
@@ -149,10 +184,12 @@ function runStructuralCheck(fileBuffer) {
     return abort("CSV has no content");
   }
 
-  const headerFields = parseCsvRow(records[0]).map((field) => field.trim());
-  if (!headersMatch(headerFields, EXPECTED_HEADERS)) {
+  const headerFields = parseCsvRow(records[0]).map(normalizeHeader);
+  const optionalColumns = getOptionalColumns(config);
+  const missingHeaders = getMissingRequiredHeaders(headerFields, optionalColumns);
+  if (missingHeaders.length > 0) {
     return abort(
-      `CSV headers must exactly match: ${EXPECTED_HEADERS.join(", ")}`
+      `This file is missing required columns: ${missingHeaders.join(", ")}. Please check your file and try again.`
     );
   }
 
@@ -166,16 +203,32 @@ function runStructuralCheck(fileBuffer) {
     }
   }
 
-  return { ok: true };
+  return {
+    ok: true,
+    text,
+    missingOptionalHeaders: getMissingOptionalHeaders(headerFields, optionalColumns),
+  };
 }
 
-function parseCsvBuffer(fileBuffer) {
+function normalizeParsedRow(row) {
+  const normalized = {};
+
+  for (const header of EXPECTED_HEADERS) {
+    normalized[header] = Object.prototype.hasOwnProperty.call(row, header)
+      ? row[header]
+      : "";
+  }
+
+  return normalized;
+}
+
+function parseCsvText(text) {
   return new Promise((resolve, reject) => {
     const rows = [];
 
-    Readable.from(fileBuffer)
-      .pipe(csv({ strict: true }))
-      .on("data", (row) => rows.push(row))
+    Readable.from([text])
+      .pipe(csv({ strict: true, mapHeaders: ({ header }) => normalizeHeader(header) }))
+      .on("data", (row) => rows.push(normalizeParsedRow(row)))
       .on("error", reject)
       .on("end", () => resolve(rows));
   });
@@ -327,13 +380,14 @@ function chunkRows(rows, chunkSize) {
 }
 
 async function runPipeline(fileBuffer, config) {
-  const structural = runStructuralCheck(fileBuffer);
+  const structural = runStructuralCheck(fileBuffer, config);
   if (structural.aborted) {
     return structural;
   }
 
-  const rows = await parseCsvBuffer(fileBuffer);
+  const rows = await parseCsvText(structural.text);
   sanitizeRows(rows);
+  const missingOptionalHeaders = new Set(structural.missingOptionalHeaders);
 
   // Map stores the first row number for each exact row signature.
   const seenRows = new Map();
@@ -345,7 +399,9 @@ async function runPipeline(fileBuffer, config) {
 
   for (let index = 0; index < rows.length; index++) {
     const row = rows[index];
-    const errors = runRules(row, index, config);
+    const errors = runRules(row, index, config).filter(
+      (error) => !missingOptionalHeaders.has(error.field)
+    );
 
     const signature = rowSignature(row);
     if (seenRows.has(signature)) {

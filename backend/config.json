@@ -46,6 +46,14 @@
     "SGD",
     "USD"
   ],
+  "optional_columns": [
+    "email",
+    "order_time",
+    "discount",
+    "transaction_id",
+    "category",
+    "shipping_address"
+  ],
   "chunk_size": 1000,
   "max_lengths": {
     "customer_name": 100,

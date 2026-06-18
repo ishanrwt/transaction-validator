@@ -5,6 +5,35 @@ const API_URL = import.meta.env.REACT_APP_API_URL || "http://localhost:5000";
 
 const ALL_DATE_FORMATS = ["DD-MM-YYYY", "YYYY-MM-DD", "MM/DD/YYYY"];
 const ALL_TIME_FORMATS = ["HH:mm:ss", "HH:mm"];
+const ALWAYS_REQUIRED_COLUMNS = [
+  "order_id",
+  "customer_name",
+  "order_date",
+  "product_id",
+  "quantity",
+  "unit_price",
+  "payment_mode",
+  "amount_paid",
+  "payment_status",
+  "payment_date",
+];
+const CONFIGURABLE_COLUMNS = [
+  "phone_number",
+  "email",
+  "order_time",
+  "discount",
+  "transaction_id",
+  "category",
+  "shipping_address",
+];
+const DEFAULT_OPTIONAL_COLUMNS = [
+  "email",
+  "order_time",
+  "discount",
+  "transaction_id",
+  "category",
+  "shipping_address",
+];
 
 const EMPTY_COUNTRY_DRAFT = { code: "", digits: "", prefixes: "" };
 
@@ -18,6 +47,10 @@ function parsePrefixes(value) {
     .split(",")
     .map((part) => part.trim())
     .filter(Boolean);
+}
+
+function formatColumnLabel(column) {
+  return column.replace(/_/g, " ");
 }
 
 function TagInput({ label, tags, onChange, placeholder }) {
@@ -94,6 +127,7 @@ function SettingsPage() {
   const [paymentModes, setPaymentModes] = useState([]);
   const [orderStatuses, setOrderStatuses] = useState([]);
   const [currencies, setCurrencies] = useState([]);
+  const [optionalColumns, setOptionalColumns] = useState(DEFAULT_OPTIONAL_COLUMNS);
   const [chunkSize, setChunkSize] = useState(1000);
 
   const [showAddCountry, setShowAddCountry] = useState(false);
@@ -123,6 +157,7 @@ function SettingsPage() {
         setPaymentModes(config.payment_modes || []);
         setOrderStatuses(config.order_statuses || []);
         setCurrencies(config.currencies || []);
+        setOptionalColumns(config.optional_columns || DEFAULT_OPTIONAL_COLUMNS);
         setChunkSize(config.chunk_size ?? 1000);
       } catch (error) {
         setLoadError(
@@ -159,6 +194,15 @@ function SettingsPage() {
         return current.filter((item) => item !== format);
       }
       return [...current, format];
+    });
+  };
+
+  const toggleOptionalColumn = (column) => {
+    setOptionalColumns((current) => {
+      if (current.includes(column)) {
+        return current.filter((item) => item !== column);
+      }
+      return [...current, column];
     });
   };
 
@@ -265,6 +309,7 @@ function SettingsPage() {
       payment_modes: paymentModes,
       order_statuses: orderStatuses,
       currencies,
+      optional_columns: optionalColumns,
       chunk_size: normalizedChunkSize,
     };
 
@@ -571,6 +616,70 @@ function SettingsPage() {
                     {format}
                   </label>
                 ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-slate-800">
+            Column Requirements
+          </h3>
+          <p className="mt-1 text-sm text-slate-500">
+            Choose which configurable columns may be missing from uploaded CSV files.
+            Present columns are still validated normally.
+          </p>
+
+          <div className="mt-5 grid gap-6 lg:grid-cols-2">
+            <div>
+              <p className="mb-3 text-sm font-medium text-slate-700">
+                Always Required
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {ALWAYS_REQUIRED_COLUMNS.map((column) => (
+                  <label
+                    key={column}
+                    className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-400"
+                  >
+                    <span>{formatColumnLabel(column)}</span>
+                    <span className="text-xs font-medium">Required</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="mb-3 text-sm font-medium text-slate-700">
+                Configurable
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {CONFIGURABLE_COLUMNS.map((column) => {
+                  const isOptional = optionalColumns.includes(column);
+
+                  return (
+                    <label
+                      key={column}
+                      className="flex cursor-pointer items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    >
+                      <span>{formatColumnLabel(column)}</span>
+                      <span className="flex items-center gap-2">
+                        <span
+                          className={`text-xs font-medium ${
+                            isOptional ? "text-amber-700" : "text-blue-700"
+                          }`}
+                        >
+                          {isOptional ? "Optional" : "Required"}
+                        </span>
+                        <input
+                          type="checkbox"
+                          checked={!isOptional}
+                          onChange={() => toggleOptionalColumn(column)}
+                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                      </span>
+                    </label>
+                  );
+                })}
               </div>
             </div>
           </div>
